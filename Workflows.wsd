@@ -1,3 +1,4 @@
+@startuml Workflows
 skinparam componentStyle rectangle
 skinparam nodesep 30
 skinparam ranksep 80
@@ -338,5 +339,6 @@ component "Access to fUS/(f)ULM" as ATFUS {
   ATPPP_Visualize ----> ATFUS_Close
   ATFUS_Close -up[#red]----> S
 }
-
 SP -down[hidden]----> ATFUS
+
+@enduml
