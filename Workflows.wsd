@@ -1,0 +1,323 @@
+@startuml Workflows
+
+skinparam componentStyle rectangle
+skinparam nodesep 30
+skinparam ranksep 80
+skinparam linetype ortho
+skinparam DefaultFontSize 12
+top to bottom direction
+
+' Define artifacts
+together{
+  artifact "Patient List" as PL $ALL $ATP
+  artifact "Patient" as P $ALL $ATP $ATS $ATPP
+  artifact "Session List" as SL $ALL $ATS
+  artifact "Patient Plan List" as PPL $ALL $ATPP $ATSP
+}
+artifact "Session" as Sx {
+  artifact "Current Session" as S $ALL $ATS $ATSP $ATLI $ATFUS
+  artifact "Past Session" as PS $ALL $ATS
+}
+together{
+  component "Saved Data List" as SAVE $ALL $ATPPP $ATPP $ATLI $AT3DI $AT3DR $ATFP $ATFUS $AT2DP
+}
+together{
+  artifact "Template Plan List" as TPL2 $ALL $ATTP
+  artifact "Patient Plan" as PP $ALL $ATPP
+  artifact "Session Plan" as SP $ALL $ATSP $AT2DP $AT3DR $ATFP $ATFUS
+  artifact "External Data (EEG, Stimulation, Injector...)" as EXT $ALL $ATFP $ATFUS
+  artifact "Acquisition parameters settings" as APS $ALL $ATSP $ATLI {
+    artifact "Probe selection" as APS_Probe $ALL $ATSP $ATLI
+    artifact "TGC" as APS_TGC $ALL $ATSP $ATLI
+  }
+}
+
+' Define components
+P -up[#red]---> PL
+P -down---> SL
+P -down---> PPL
+Sx -up[#red]---> P
+
+package "Access to Patient" as ATP {
+  component "Select Patient" as ATP_Select $ALL $ATP
+  component "Create Patient" as ATP_Create $ALL $ATP
+  component "Add to Patient List" as ATP_Add $ALL $ATP
+  component "Enter Patient View" as ATP_Enter $ALL $ATP
+  PL -right----> ATP_Create : New\nPatient
+  ATP_Create -down-> ATP_Add
+  PL -left----> ATP_Select : Existing\nPatient
+  ATP_Add -down-> ATP_Enter
+  ATP_Select -down-> ATP_Enter
+  ATP_Enter -down----> P
+}
+PL -down[hidden]----> ATP
+
+package "Access to Session" as ATS {
+  component "Select Past Session" as ATS_Select $ALL $ATS
+  component "Create Session" as ATS_Create $ALL $ATS
+  component "Add to Session List" as ATS_Add $ALL $ATS
+  SL -down----> ATS_Create : New\nSession
+  ATS_Create -down-> ATS_Add
+  SL -down----> ATS_Select : Past\nSession
+  ATS_Add -down----> S
+  ATS_Select -down----> PS
+}
+P -down[hidden]----> ATS
+
+package "Access to Data Analysis Pipeline" as ATPPP {
+  artifact "Post-processed Data" as ATPPP_PPData $ALL $ATPPP $ATSD $ATFUS
+  component "Enter Post-Processing Pipeline" as ATPPP_Pipeline $ALL $ATPPP $ATSD $ATFUS
+  component "Analysis" as ATPPP_Analysis {
+    component "Visualize, Measure, Annotate, Generate Report, or Export" as ATPPP_Visualize $ALL $ATPPP $ATSD $AT3DI $AT3DR $AT2DP $ATFUS
+    component "Visualize, Edit, Draw New ROIs" as ATPPP_ROI $ALL $AT2DP $AT3DR
+    component "Select Slices for fUS/(f)ULM" as ATPPP_Slices $ALL $AT2DP $AT3DR
+  }
+  ATPPP_Pipeline -down-> ATPPP_PPData
+  ATPPP_PPData -[#green]----> SAVE
+  ATPPP_PPData -up-> ATPPP_Visualize
+  ATPPP_Visualize -down-> ATPPP_Pipeline : Re-process
+  ATPPP_Visualize .. ATPPP_ROI
+  ATPPP_ROI .. ATPPP_Slices
+  ATPPP_Slices .. ATPPP_Visualize
+}
+
+package "Access to Session Data" as ATSD {
+  artifact "Data" as ATSD_Data $ALL $ATSD
+  component "View Data List" as ATSD_View $ALL $ATSD
+  component "Select Data Item" as ATSD_Select $ALL $ATSD
+  component "Close Data" as ATSD_Close $ALL $ATSD
+  Sx -down----> ATSD_View
+  ATSD_View -down-> ATSD_Select
+  ATSD_Select -down-> ATSD_Data
+  ATSD_Data -down-> ATPPP_Visualize
+  ATPPP_Visualize -down-> ATSD_Close
+  ATSD_Close -up-> ATSD_View
+  ATSD_View -up[#red]----> Sx
+}
+Sx -[hidden]down----> ATSD
+ATS -[hidden]down----> Sx
+
+package "Access to Patient Plan" as ATPP {
+  component "Open Plan" as ATPP_View $ALL $ATPP
+  component "Select Plan from Current Patient Plan List" as ATPP_SelectCurrent $ALL $ATPP
+  component "Open Template Plan List" as ATPP_OpenTemplate $ALL $ATPP
+  component "Select Template Plan" as ATPP_SelectTemplate $ALL $ATPP
+  component "Copy to Patient Plan List" as ATPP_Copy $ALL $ATPP
+  component "Add to Patient Plan List" as ATPP_Add $ALL $ATPP
+  component "Open Patient List" as ATPP_OpenPL $ALL $ATPP
+  component "Select Other Patient" as ATPP_SelectOtherP $ALL $ATPP
+  component "View Patient Plan List" as ATPP_ViewOtherPL $ALL $ATPP
+  component "Select Session" as ATPP_SelectOtherS $ALL $ATPP
+  component "View Session Plan List" as ATPP_ViewOtherSPL $ALL $ATPP
+  component "Select Plan" as ATPP_SelectOtherSPL $ALL $ATPP
+  component "Create Plan from Scratch" as ATPP_CreateNew $ALL $ATPP
+  component "Edit Plan" as ATPP_Edit $ALL $ATPP
+  component "Close" as ATPP_Close $ALL $ATPP
+  PPL -down----> ATPP_View
+  ATPP_View --> ATPP_SelectCurrent : Pull from\nCurrent Patient Plan
+  TPL2 ----> ATPP_OpenTemplate
+  ATPP_View --> ATPP_OpenTemplate : Pull from\nTemplate
+  ATPP_View --> ATPP_OpenPL : Pull from\nOther Patient
+  ATPP_View --> ATPP_CreateNew : Create\nNew
+  ATPP_SelectCurrent -> ATPP_Edit
+  ATPP_OpenTemplate --> ATPP_SelectTemplate
+  ATPP_SelectTemplate --> ATPP_Copy
+  ATPP_Copy --> ATPP_Edit
+  ATPP_OpenPL --> ATPP_SelectOtherP
+  ATPP_SelectOtherP --> ATPP_ViewOtherPL
+  ATPP_ViewOtherPL --> ATPP_SelectOtherS : Pull from\nOther Session
+  ATPP_SelectOtherS --> ATPP_ViewOtherSPL
+  ATPP_ViewOtherSPL --> ATPP_SelectOtherSPL
+  ATPP_SelectOtherSPL --> ATPP_Copy
+  ATPP_CreateNew --> ATPP_Add
+  ATPP_Add --> ATPP_Edit
+  ATPP_Edit -down----> PP
+  PP -[#green]----> PPL
+  ATPP_Edit --> ATPP_Close
+  ATPP_Close -up[#red]----> P
+}
+TPL2 -[hidden]---- ATPP
+
+package "Access to Session Plan" as ATSP {
+  component "Create Plan from Scratch" as ATSP_Create $ALL $ATSP
+  component "Select Plan" as ATSP_Select $ALL $ATSP
+  component "Copy to Session" as ATSP_Copy $ALL $ATSP
+  component "Edit Plan" as ATSP_Edit $ALL $ATSP
+  component "Close" as ATSP_Close $ALL $ATSP
+  S -down----> ATSP_Create : New\nPlan
+  PPL -down----> ATSP_Select : Pull\nPlan
+  S ----> ATSP_Select
+  ATSP_Select --> ATSP_Copy
+  ATSP_Create --> ATSP_Edit
+  ATSP_Copy --> ATSP_Edit
+  ATSP_Edit ----> SP
+  ATSP_Edit --> ATSP_Close
+  ATSP_Close -up[#red]----> S
+  APS ----> ATSP_Edit : Set\nParameters
+}
+Sx -down[hidden]----> ATSP
+ATPP -down[hidden]----> ATSP
+PP -down[hidden]----> SP
+
+package "Access to Live Imaging" as ATLI {
+  artifact "Live Snapshot" as ATLI_LS $ALL $ATLI
+  component "Setup Live Options" as ATLI_Setup $ALL $ATLI
+  component "Stream Live Sequence" as ATLI_Stream $ALL $ATLI $AT2DP $AT3DI $AT3DR
+  component "Freeze" as ATLI_Freeze $ALL $ATLI
+  component "Analyze Frozen Frames" as ATLI_Analyze $ALL $ATLI
+  component "Save Snapshot to Session Data" as ATLI_Save $ALL $ATLI
+  component "Unfreeze" as ATLI_Unfreeze $ALL $ATLI
+  S -down----> ATLI_Setup
+  ATLI_Setup -down-> ATLI_Stream
+  ATLI_Stream -down-> ATLI_Freeze : Freeze?
+  ATLI_Freeze -down-> ATLI_Analyze
+  ATLI_Analyze -down-> ATLI_Save : Save?
+  ATLI_Analyze -up-> ATLI_Unfreeze
+  ATLI_Save -up-> ATLI_LS
+  ATLI_LS -[#green]----> SAVE
+  ATLI_Save -up-> ATLI_Unfreeze
+  ATLI_Unfreeze -up-> ATLI_Stream
+  ATLI_Stream -[#red]----> S
+  APS ----> ATLI_Setup : Set\nParameters
+}
+S -down[hidden]----> ATLI
+
+package "Access to 2D Positioning" as AT2DP {
+  artifact "2D Reference" as AT2DP_2DR $ALL $AT2DP
+  component "Enter 2D Positioning View" as AT2DP_EnterView $ALL $AT2DP
+  component "Pull 2D Reference" as AT2DP_Ref $ALL $AT2DP
+  component "Display Reference with Live\n(side-by-side or overlay)" as AT2DP_Display $ALL $AT2DP
+  component "Update ROIs?" as AT2DP_UpdateROI $ALL $AT2DP
+  component "Close Reference" as AT2DP_Close $ALL $AT2DP
+  component "Update Session Plan" as AT2DP_Update $ALL $AT2DP
+  ATLI_Stream -down----> AT2DP_EnterView
+  AT2DP_EnterView --> AT2DP_Ref
+  SP ----> AT2DP_Ref
+  SAVE --> AT2DP_Ref
+  AT2DP_Ref --> AT2DP_2DR
+  AT2DP_2DR --> AT2DP_Display
+  AT2DP_Display --> AT2DP_Close
+  AT2DP_Close --> AT2DP_UpdateROI
+  AT2DP_UpdateROI --> ATPPP_Visualize : yes
+  ATPPP_Visualize --> AT2DP_Update
+  AT2DP_Update ----> SP
+  AT2DP_Update --> AT2DP_Close
+  AT2DP_UpdateROI --> AT2DP_Close : no
+  AT2DP_Close -up[#red]----> ATLI_Stream
+}
+ATLI -down[hidden]----> AT2DP
+
+package "Access to 3D Imaging" as AT3DI {
+  component "Enter 3D View" as AT3DI_EnterView $ALL $AT3DI
+  component "Setup 3D Options" as AT3DI_Setup $ALL $AT3DI
+  component "Run 3D Acquisition" as AT3DI_Run $ALL $AT3DI
+  component "Reconstruct 3D Volume" as AT3DI_Reconstruct $ALL $AT3DI
+  component "Retake?" as AT3DI_Retake $ALL $AT3DI
+  component "Close 3D View" as AT3DI_Close $ALL $AT3DI
+  artifact "3D  Acquisition" as AT3DI_3DA $ALL $AT3DI
+  artifact "3D  Reconstruction" as AT3DI_3DR $ALL $AT3DI
+  ATLI_Stream ----> AT3DI_EnterView
+  AT3DI_EnterView -down-> AT3DI_Setup
+  AT3DI_Setup -down-> AT3DI_Run
+  AT3DI_Run -down-> AT3DI_3DA
+  AT3DI_3DA -[#green]----> SAVE
+  AT3DI_3DA -down-> AT3DI_Reconstruct
+  AT3DI_Reconstruct -down-> AT3DI_3DR
+  AT3DI_3DR -[#green]----> SAVE
+  AT3DI_3DR ----> ATPPP_Visualize
+  ATPPP_Visualize ----> AT3DI_Retake
+  AT3DI_Retake -up-> AT3DI_Setup : yes
+  AT3DI_Retake --> AT3DI_Close : no
+  AT3DI_Close -[#red]----> ATLI_Stream
+}
+ATLI -down[hidden]----> AT3DI
+
+package "Access to 3D Reference-based Positioning" as AT3DR {
+  component "Enter 3D View" as AT3DR_EnterView $ALL $AT3DR
+  component "Open 3D Reconstruction" as AT3DR_Open3D $ALL $AT3DR
+  component "Use Past Reference?" as AT3DR_UseRef $ALL $AT3DR
+  component "Open 3D Reference" as AT3DR_Open3DRef $ALL $AT3DR
+  component "Use Session 3D as Reference" as AT3DR_Use3DAsRef $ALL $AT3DR
+  component "Register" as AT3DR_Register $ALL $AT3DR
+  artifact "3D Reference" as AT3DR_3DR $ALL $AT3DR
+  artifact "3D Reconstruction" as AT3DR_Volume $ALL $AT3DR
+  artifact "Transform" as AT3DR_Transform $ALL $AT3DR
+  artifact "Registered ROIs" as AT3DR_RegROIs $ALL $AT3DR
+  artifact "Registered Reference" as AT3DR_RegRef $ALL $AT3DR
+  component "Transform Reference & ROIs" as AT3DR_Deform $ALL $AT3DR
+  component "Edit Transform" as AT3DR_Edit $ALL $AT3DR
+  component "Update Session Plan" as AT3DR_UpdateSP $ALL $AT3DR
+  component "Update Slices & ROIs?" as AT3DR_UpdateSROI $ALL $AT3DR
+  component "Close 3D View" as AT3DR_Close $ALL $AT3DR
+  ATLI_Stream ----> AT3DR_EnterView
+  AT3DR_EnterView --> AT3DR_Open3D
+  AT3DR_EnterView .... ATPPP_Analysis
+  AT3DR_Open3D --> AT3DR_Volume
+  SAVE ----> AT3DR_Volume
+  AT3DR_UseRef --> AT3DR_Use3DAsRef : no
+  AT3DR_Volume --> AT3DR_Use3DAsRef
+  AT3DR_UseRef --> AT3DR_Open3DRef : yes
+  AT3DR_Open3DRef --> AT3DR_3DR
+  SP ----> AT3DR_3DR
+  SAVE ----> AT3DR_3DR
+  AT3DR_3DR --> AT3DR_Register
+  AT3DR_Volume --> AT3DR_Register
+  AT3DR_Register --> AT3DR_Transform
+  AT3DR_Transform --> AT3DR_Edit
+  AT3DR_Edit --> AT3DR_Transform
+  AT3DR_Edit --> AT3DR_Register : Re-run (yes)
+  AT3DR_Transform -[#green]----> SAVE
+  AT3DR_Transform --> AT3DR_Deform
+  AT3DR_3DR --> AT3DR_Deform
+  AT3DR_Deform -down-> AT3DR_RegROIs
+  AT3DR_RegROIs -[#green]----> SAVE
+  AT3DR_Deform -down-> AT3DR_RegRef
+  AT3DR_RegROIs -down-> AT3DR_UpdateSROI
+  AT3DR_RegRef -down-> AT3DR_UpdateSROI
+  AT3DR_Use3DAsRef -down-> AT3DR_UpdateSROI
+  AT3DR_UpdateSROI ----> ATPPP_Analysis : yes
+  AT3DR_UpdateSROI --> AT3DR_UpdateSP : no
+  ATPPP_Analysis --> AT3DR_UpdateSP
+  AT3DR_UpdateSP --> SP
+  AT3DR_UpdateSP --> AT3DR_Close
+  ATPPP_Analysis .... AT3DR_Close
+  AT3DR_Close -up[#red]----> ATLI_Stream
+}
+AT3DI -[hidden]----> AT3DR
+AT3DR -[hidden]---- AT2DP
+
+component "Access to Final Plan" as ATFP {
+  component "Review Session Plan" as ATFP_Review $ALL $ATFP
+  component "Edit Session Plan" as ATFP_Edit $ALL $ATFP
+  component "Validate Final Plan" as ATFP_Validate $ALL $ATFP
+  SP -down----> ATFP_Review
+  ATFP_Review --> ATFP_Edit
+  EXT ----> ATFP_Edit
+  ATFP_Edit --> ATFP_Review
+  ATFP_Review --> ATFP_Validate
+  ATFP_Validate ----> SP
+  SP -[#green]----> SAVE
+  ATFP_Validate -up[#red]----> S
+}
+SP -down[hidden]----> ATFP
+AT2DP -down[hidden]----> ATFP
+AT3DR -down[hidden]----> ATFP
+
+component "Access to fUS/(f)ULM" as ATFUS {
+  component "Run fUS/(f)ULM Acquisition" as ATFUS_Run $ALL $ATFUS
+  component "Add Timestamped Annotations" as ATFUS_Timestamp $ALL $ATFUS
+  component "Complete Acquisition" as ATFUS_Complete $ALL $ATFUS
+  component "Close Data" as ATFUS_Close $ALL $ATFUS
+  artifact "fUS/(f)ULM Acquisition" as ATFUS_Acq $ALL $ATFUS
+  SP -down----> ATFUS_Run
+  ATFUS_Timestamp --> ATFUS_Run
+  EXT ----> ATFUS_Run
+  ATFUS_Run .... ATSD : Simultaneous\nAccess
+  ATFUS_Run -down-> ATFUS_Complete
+  ATFUS_Complete -down-> ATFUS_Acq
+  ATFUS_Acq -[#green]----> SAVE
+  ATFUS_Acq ----> ATPPP_Pipeline
+  ATPPP_Visualize ----> ATFUS_Close
+  ATFUS_Close -up[#red]----> S
+}
+SP -down[hidden]----> ATFUS
