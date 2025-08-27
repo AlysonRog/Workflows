@@ -1,11 +1,31 @@
-@startuml Workflows
-
 skinparam componentStyle rectangle
 skinparam nodesep 30
 skinparam ranksep 80
 skinparam linetype ortho
 skinparam DefaultFontSize 12
+
 top to bottom direction
+
+' To focus on one box:
+' 1. Uncomment hide $ALL
+' 2. Uncomment the show $X where X is the box tag
+
+
+' hide $ALL
+
+' show $ATP
+' show $ATS
+' show $ATPPP
+' show $ATSD
+' show $ATPP
+' show $ATSP
+' show $ATLI
+' show $AT2DP
+' show $AT3DI
+' show $AT3DR
+' show $ATFP
+' show $ATFUS
+' show $ALL
 
 ' Define artifacts
 together{
@@ -15,10 +35,12 @@ together{
   artifact "Patient Plan List" as PPL $ALL $ATPP $ATSP
 }
 artifact "Session" as Sx {
-  artifact "Current Session" as S $ALL $ATS $ATSP $ATLI $ATFUS
-  artifact "Past Session" as PS $ALL $ATS
+artifact "Current Session" as S $ALL $ATS $ATSP $ATLI $ATFUS
+artifact "Past Session" as PS $ALL $ATS
 }
 together{
+  'artifact "Saved Data List" as SD $ALL $ATPPP $ATPP $ATLI $AT3DI $AT2DP $AT3DR $ATFUS
+  'component "Save" as SAVE $ALL $ATPPP $ATPP $ATLI $AT3DI $AT3DR $ATFP $ATFUS
   component "Saved Data List" as SAVE $ALL $ATPPP $ATPP $ATLI $AT3DI $AT3DR $ATFP $ATFUS $AT2DP
 }
 together{
@@ -26,10 +48,6 @@ together{
   artifact "Patient Plan" as PP $ALL $ATPP
   artifact "Session Plan" as SP $ALL $ATSP $AT2DP $AT3DR $ATFP $ATFUS
   artifact "External Data (EEG, Stimulation, Injector...)" as EXT $ALL $ATFP $ATFUS
-  artifact "Acquisition parameters settings" as APS $ALL $ATSP $ATLI {
-    artifact "Probe selection" as APS_Probe $ALL $ATSP $ATLI
-    artifact "TGC" as APS_TGC $ALL $ATSP $ATLI
-  }
 }
 
 ' Define components
@@ -128,6 +146,7 @@ package "Access to Patient Plan" as ATPP {
   ATPP_ViewOtherPL --> ATPP_SelectOtherS : Pull from\nOther Session
   ATPP_SelectOtherS --> ATPP_ViewOtherSPL
   ATPP_ViewOtherSPL --> ATPP_SelectOtherSPL
+  ATPP_ViewOtherPL --> ATPP_SelectOtherSPL
   ATPP_SelectOtherSPL --> ATPP_Copy
   ATPP_CreateNew --> ATPP_Add
   ATPP_Add --> ATPP_Edit
@@ -153,7 +172,6 @@ package "Access to Session Plan" as ATSP {
   ATSP_Edit ----> SP
   ATSP_Edit --> ATSP_Close
   ATSP_Close -up[#red]----> S
-  APS ----> ATSP_Edit : Set\nParameters
 }
 Sx -down[hidden]----> ATSP
 ATPP -down[hidden]----> ATSP
@@ -178,7 +196,6 @@ package "Access to Live Imaging" as ATLI {
   ATLI_Save -up-> ATLI_Unfreeze
   ATLI_Unfreeze -up-> ATLI_Stream
   ATLI_Stream -[#red]----> S
-  APS ----> ATLI_Setup : Set\nParameters
 }
 S -down[hidden]----> ATLI
 
@@ -252,6 +269,7 @@ package "Access to 3D Reference-based Positioning" as AT3DR {
   ATLI_Stream ----> AT3DR_EnterView
   AT3DR_EnterView --> AT3DR_Open3D
   AT3DR_EnterView .... ATPPP_Analysis
+  AT3DR_EnterView --> AT3DR_UseRef
   AT3DR_Open3D --> AT3DR_Volume
   SAVE ----> AT3DR_Volume
   AT3DR_UseRef --> AT3DR_Use3DAsRef : no
@@ -320,4 +338,5 @@ component "Access to fUS/(f)ULM" as ATFUS {
   ATPPP_Visualize ----> ATFUS_Close
   ATFUS_Close -up[#red]----> S
 }
+
 SP -down[hidden]----> ATFUS
